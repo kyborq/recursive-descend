@@ -55,7 +55,7 @@ int main(int argc, char* argv[])
 {
     setlocale(0, "");
 
-    string code = "PROG id VAR id, id: int BEGIN WRITE(id); READ (id); END";
+    string code = "PROG id VAR id ,id: int BEGIN id:=(id+num*-(-num+id*id*-num*(id+-num)); END";
 
 
     Lexer lexer = Lexer(code);
@@ -65,20 +65,16 @@ int main(int argc, char* argv[])
 
     if (tokens.size() == 0)
     {
-        cout << Spaces(lexer.GetPosition())
-            << "^ ошибка в синтаксисе" << endl << endl;
-        return 0;
+       cout << Spaces(lexer.GetPosition())
+          << "^ ошибка в синтаксисе" << endl << endl;
+       return 0;
     }
 
     Parser parser = Parser(tokens);
-    bool q = parser.Parse();
+    bool result = parser.Parse();
 
-    if (q)
+    /*for (Token t : tokens)
     {
-        cout << "OK!";
-    }
-    else
-    {
-        cout << "BAD!!!";
-    }
+        cout << t.text << endl;
+    }*/
 }

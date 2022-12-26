@@ -7,7 +7,7 @@ ErrorHandler::ErrorHandler()
 
 void ErrorHandler::Call(std::string error)
 {
-	for (int i = 0; i < this->position; i++)
+	for (int i = 0; i < this->position - 1; i++)
 	{
 		std::cout << " ";
 	}

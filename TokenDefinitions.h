@@ -23,6 +23,7 @@ const std::string NL = "NL";
 const std::string TYPE = "TYPE";
 const std::string WRITE = "WRITE";
 const std::string READ = "READ";
+const std::string NUMBER = "num";
 
 const std::map<std::string, TokenType> TokenDefs{
     { PROGRAM, {PROGRAM, std::regex("^PROG\\b")} },
@@ -43,7 +44,8 @@ const std::map<std::string, TokenType> TokenDefs{
     { NL, {NL, std::regex("^\\n|\\r")}},
     { TYPE, {TYPE, std::regex("^(int|float|bool|string)")}},
     { WRITE, {WRITE, std::regex("^WRITE\\b")}},
-    { READ, {READ, std::regex("^READ\\b")}}
+    { READ, {READ, std::regex("^READ\\b")}},
+    { NUMBER, {NUMBER, std::regex("^num\\b")}},
 };
 
 const std::map<std::string, std::string> ErrorDefs{
@@ -63,5 +65,6 @@ const std::map<std::string, std::string> ErrorDefs{
     { MUL, "Возможно не хватает: [*]"},
     { TYPE, "Отсутствует тип переменной(-ых)"},
     { WRITE, "Неправильно записана команда: [WRITE]"},
-    { READ, "Неправильно записана команда: [READ]"}
+    { READ, "Неправильно записана команда: [READ]"},
+    { NUMBER, "Ожидался Num"},
 };

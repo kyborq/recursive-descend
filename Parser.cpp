@@ -6,10 +6,8 @@
 Parser::Parser(std::vector<Token> tokens)
 {
 	this->position = 0;
-	this->errorPosition = -1;
+	this->isError = false;
 	this->tokens = tokens;
-
-	this->Errors = ErrorHandler();
 }
 
 bool Parser::Parse()
@@ -18,61 +16,118 @@ bool Parser::Parse()
 	return prog;
 }
 
-// <PROG>->PROG id <VAR> begin < LISTST> end
+
+std::optional<Token> Parser::Match(TokenType type)
+{
+	Token currentToken = this->tokens.at(this->position);
+
+	if (type.name == currentToken.type.name)
+	{
+		if (this->position < this->tokens.size() - 1)
+		{
+			this->position += 1;
+		}
+
+		return currentToken;
+	} 
+
+	this->error.SetPosition(currentToken.position);
+	return std::nullopt;
+}
+
+bool Parser::IsMatch(TokenType type)
+{
+	Token currentToken = this->tokens.at(this->position);
+	bool isMatching = type.name == currentToken.type.name;
+
+	if (isMatching)
+	{
+		if (this->position < this->tokens.size() - 1)
+		{
+			this->position += 1;
+		}
+	}
+
+	this->error.SetPosition(currentToken.position);
+	return isMatching;
+}
+
+std::optional<Token> Parser::MatchAny(std::vector<TokenType> types)
+{
+
+	Token currentToken = this->tokens.at(this->position);
+
+	for (TokenType type : types)
+	{
+
+		bool isMatching = type.name == currentToken.type.name;
+
+		if (isMatching)
+		{
+			if (this->position < this->tokens.size() - 1)
+			{
+				this->position += 1;
+			}
+			return currentToken;
+		}
+
+	}
+
+	this->error.SetPosition(currentToken.position);
+
+	return std::nullopt;
+}
+
 bool Parser::Prog()
 {
 	auto prog = this->Match(TokenDefs.at(PROGRAM));
-
 	if (!prog)
 	{
-		this->Errors.Call(ErrorDefs.at(PROGRAM));
+		this->error.Call(ErrorDefs.at(PROGRAM));
 		return false;
 	}
 
 	auto id = this->Match(TokenDefs.at(IDENTIFIER));
 	if (!id)
 	{
-		this->Errors.Call(ErrorDefs.at(IDENTIFIER));
+		this->error.Call(ErrorDefs.at(IDENTIFIER));
 		return false;
 	}
 
 	bool var = this->Var();
-	if (!var)
-	{
+	if (!var) {
 		return false;
 	}
 
 	auto begin = this->Match(TokenDefs.at(BEGIN));
 	if (!begin)
 	{
-		this->Errors.Call(ErrorDefs.at(BEGIN));
+		this->error.Call(ErrorDefs.at(BEGIN));
 		return false;
 	}
 
 	bool listSt = this->ListSt();
 	if (!listSt)
 	{
-		this->Errors.Call(ErrorDefs.at("Ожидался список команд"));
 		return false;
 	}
 
 	auto end = this->Match(TokenDefs.at(END));
 	if (!end)
 	{
-		this->Errors.Call(ErrorDefs.at(END));
+		this->error.Call(ErrorDefs.at(END));
 		return false;
 	}
 
 	return true;
 }
 
-// <VAR>->VAR < IDLIST> : <TYPE>
 bool Parser::Var()
 {
 	auto var = this->Match(TokenDefs.at(VARIABLE));
 	if (!var)
 	{
-		this->Errors.Call(ErrorDefs.at(VARIABLE));
+		this->error.Call(ErrorDefs.at(VARIABLE));
 		return false;
 	}
 
@@ -82,9 +137,12 @@ bool Parser::Var()
 		return false;
 	}
 
+
 	auto colon = this->Match(TokenDefs.at(COLON));
 	if (!colon)
 	{
+		std::cout << this->tokens.at(this->position).text << std::endl;
+		this->error.Call(ErrorDefs.at(COLON));
 		return false;
 	}
 
@@ -97,143 +155,92 @@ bool Parser::Var()
 	return true;
 }
 
-// < IDLIST> -> id | < IDLIST>, id
-bool Parser::IdList()
-{
-	auto id = this->Match({ TokenDefs.at(IDENTIFIER), TokenDefs.at(COMMA) });
-	if (!id)
-	{
-		this->Errors.Call(ErrorDefs.at(COMMA));
-		return false;
-	}
-
-	auto comma = this->Match(TokenDefs.at(COMMA));
-	if (comma)
-	{
-		return this->IdList();
-	}
-
-	return true;
-}
-
-// <TYPE>-> int | float | bool | string
 bool Parser::Type()
 {
 	auto type = this->Match(TokenDefs.at(TYPE));
 	if (!type)
 	{
-		this->Errors.Call(ErrorDefs.at(TYPE));
+		this->error.Call(ErrorDefs.at(TYPE));
 		return false;
 	}
 
 	return true;
 }
 
-// < LISTST>-> < ST> | < LISTST> <ST>
+bool Parser::IdList()
+{
+	auto id = this->Match(TokenDefs.at(IDENTIFIER));
+	if (!id)
+	{
+		this->error.Call(ErrorDefs.at(IDENTIFIER));
+		return false;
+	}
+
+	bool comma = this->IsMatch(TokenDefs.at(COMMA));
+	if (comma)
+	{
+		return this->IdList();
+	}
+	//this->position -= 1;
+
+	return true;
+}
+
 bool Parser::ListSt()
 {
 	bool st = this->St();
 	if (!st)
 	{
-		return this->St();
+		return false;
+	}
+	else
+	{
+		return this->ListSt();
 	}
 
-	return this->ListSt();
+	return false;
 }
 
-// <ST>-> <READ>|<WRITE>| <ASSIGN>
 bool Parser::St()
 {
-	bool read = this->Read();
-	bool write = this->Write();
+	auto op = this->MatchAny({ 
+		TokenDefs.at(WRITE), 
+		TokenDefs.at(READ), 
+		TokenDefs.at(IDENTIFIER) 
+	});
 
-	return read || write;
-}
-
-bool Parser::Assign()
-{
-	auto id = this->Match(TokenDefs.at(IDENTIFIER));
-	if (!id)
-	{
-		this->Errors.Call(ErrorDefs.at(IDENTIFIER));
-		this->position -= 1;
-		return false;
-	}
-
-	auto assign = this->Match(TokenDefs.at(ASSIGN));
-	if (!assign)
-	{
-		this->Errors.Call(ErrorDefs.at(ASSIGN));
-		return false;
-	}
-
-	bool expression = this->Exp();
-	if (!expression)
+	if (!op)
 	{
 		return false;
 	}
 
-	return true;
-}
+	this->position -= 1;
 
-bool Parser::Exp()
-{
-	return true;
-}
-
-bool Parser::T()
-{
-
-	auto mul = this->Match(TokenDefs.at(MUL));
-	if (!mul)
+	if (op->type.name == TokenDefs.at(WRITE).name)
 	{
-		this->Errors.Call(ErrorDefs.at(MUL));
-		return false;
+		bool write = this->Write();
+		if (!write)
+		{
+			return false;
+		}
 	}
 
-	return true;
-}
-
-bool Parser::F()
-{
-	return true;
-}
-
-bool Parser::Read()
-{
-	auto read = this->Match(TokenDefs.at(READ));
-	if (!read)
+	if (op->type.name == TokenDefs.at(READ).name)
 	{
-		this->Errors.Call(ErrorDefs.at(READ));
-		this->position -= 1;
-		return false;
+		bool read = this->Read();
+		if (!read)
+		{
+			return false;
+		}
 	}
 
-	auto lp = this->Match(TokenDefs.at(LP));
-	if (!lp)
+	if (op->type.name == TokenDefs.at(IDENTIFIER).name)
 	{
-		this->Errors.Call(ErrorDefs.at(LP));
-		return false;
-	}
-
-	bool idList = this->IdList();
-	if (!idList)
-	{
-		return false;
-	}
-
-	auto rp = this->Match(TokenDefs.at(RP));
-	if (!rp)
-	{
-		this->Errors.Call(ErrorDefs.at(RP));
-		return false;
-	}
-
-	auto semi = this->Match(TokenDefs.at(SEMICOLON));
-	if (!rp)
-	{
-		this->Errors.Call(ErrorDefs.at(SEMICOLON));
-		return false;
+		bool assign = this->Assign();
+		if (!assign)
+		{
+			return false;
+		}
 	}
 
 	return true;
@@ -244,15 +251,14 @@ bool Parser::Write()
 	auto write = this->Match(TokenDefs.at(WRITE));
 	if (!write)
 	{
-		this->Errors.Call(ErrorDefs.at(WRITE));
-		this->position -= 1;
+		this->error.Call(ErrorDefs.at(WRITE));
 		return false;
 	}
 
 	auto lp = this->Match(TokenDefs.at(LP));
 	if (!lp)
 	{
-		this->Errors.Call(ErrorDefs.at(LP));
+		this->error.Call(ErrorDefs.at(LP));
 		return false;
 	}
 
@@ -265,58 +271,169 @@ bool Parser::Write()
 	auto rp = this->Match(TokenDefs.at(RP));
 	if (!rp)
 	{
-		this->Errors.Call(ErrorDefs.at(RP));
+		this->error.Call(ErrorDefs.at(RP));
 		return false;
 	}
 
 	auto semi = this->Match(TokenDefs.at(SEMICOLON));
-	if (!rp)
+	if (!semi)
 	{
-		this->Errors.Call(ErrorDefs.at(SEMICOLON));
+		this->error.Call(ErrorDefs.at(SEMICOLON));
 		return false;
 	}
 
 	return true;
 }
 
-void Parser::NextPosition()
+bool Parser::Read()
 {
-	if (this->position < this->tokens.size() - 1)
+	auto write = this->Match(TokenDefs.at(READ));
+	if (!write)
 	{
-		this->position += 1;
-	}
-}
-
-std::optional<Token> Parser::Match(TokenType type)
-{
-	Token currentToken = this->tokens.at(this->position);
-	this->Errors.SetPosition(currentToken.position);
-
-	if (type.name == currentToken.type.name)
-	{
-		this->NextPosition();
-		return currentToken;
-	} 
-
-
-	//std::cout << currentToken.text << std::endl;
-	return std::nullopt;
-}
-
-std::optional<Token> Parser::Match(std::vector<TokenType> tokenTypes)
-{
-	Token currentToken = this->tokens.at(this->position);
-	this->Errors.SetPosition(currentToken.position);
-
-	for (TokenType type : tokenTypes)
-	{
-		if (type.name == currentToken.type.name)
-		{
-			//std::cout << type.name << " " << currentToken.type.name << std::endl;
-			this->NextPosition();
-			return currentToken;
-		}
+		this->error.Call(ErrorDefs.at(READ));
+		return false;
 	}
 
-	return std::nullopt;
+	auto lp = this->Match(TokenDefs.at(LP));
+	if (!lp)
+	{
+		this->error.Call(ErrorDefs.at(LP));
+		return false;
+	}
+
+	bool idList = this->IdList();
+	if (!idList)
+	{
+		return false;
+	}
+
+	auto rp = this->Match(TokenDefs.at(RP));
+	if (!rp)
+	{
+		this->error.Call(ErrorDefs.at(RP));
+		return false;
+	}
+
+	auto semi = this->Match(TokenDefs.at(SEMICOLON));
+	if (!semi)
+	{
+		this->error.Call(ErrorDefs.at(SEMICOLON));
+		return false;
+	}
+
+	return true;
+}
+
+bool Parser::Assign()
+{
+	// id
+	auto id = this->Match(TokenDefs.at(IDENTIFIER));
+	if (!id)
+	{
+		this->error.Call(ErrorDefs.at(IDENTIFIER));
+		return false;
+	}
+
+	// :=
+	auto assign = this->Match(TokenDefs.at(ASSIGN));
+	if (!assign)
+	{
+		this->error.Call(ErrorDefs.at(ASSIGN));
+		return false;
+	}
+
+	// <EXP>
+	bool exp = this->Exp();
+	if (!exp)
+	{
+		return false;
+	}
+
+	auto semi = this->Match(TokenDefs.at(SEMICOLON));
+	if (!semi)
+	{
+		this->error.Call(ErrorDefs.at(SEMICOLON));
+		return false;
+	}
+
+	return true;
+}
+
+bool Parser::Exp()
+{
+	bool t = this->T();
+	if (!t)
+	{
+		return false;
+	}
+
+	bool plus = this->IsMatch(TokenDefs.at(SUM));
+	if (plus)
+	{
+		this->error.Call(ErrorDefs.at(SUM));
+		return this->Exp();
+	}
+
+	return true;
+}
+
+bool Parser::T()
+{
+	bool f = this->F();
+	if (!f)
+	{
+		return false;
+	}
+
+	bool mul = this->IsMatch(TokenDefs.at(MUL));
+	if (mul)
+	{
+		this->error.Call(ErrorDefs.at(MUL));
+		return this->T();
+	}
+
+	return true;
+}
+
+bool Parser::F()
+{
+	bool sub = this->IsMatch(TokenDefs.at(SUB));
+	if (sub)
+	{
+		this->error.Call(ErrorDefs.at(SUB));
+		return this->F();
+	}
+	//this->position -= 1;
+
+	// ...
+
+	auto lp = this->Match(TokenDefs.at(LP));
+	if (!lp)
+	{
+		this->error.Call(ErrorDefs.at(LP));
+		return false;
+	}
+
+	bool exp = this->Exp();
+	if (!exp)
+	{
+		return false;
+	}
+
+	auto rp = this->Match(TokenDefs.at(RP));
+	if (!rp)
+	{
+		this->error.Call(ErrorDefs.at(RP));
+		return false;
+	}
+
+	// ...
+
+	auto op = this->MatchAny({ TokenDefs.at(IDENTIFIER), TokenDefs.at(NUMBER) });
+	if (!op)
+	{
+		return false;
+	}
+
+	return true;
 }
