@@ -24,6 +24,7 @@
     <ProjectGuid>{7f5a8913-29c8-47a2-927f-c8e357205c11}</ProjectGuid>
     <RootNamespace>RecursiveDescent</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+    <ProjectName>RecursiveDescend</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -146,7 +147,7 @@
     <ClCompile Include="ErrorHandler.cpp" />
     <ClCompile Include="Lexer.cpp" />
     <ClCompile Include="Parser.cpp" />
-    <ClCompile Include="RecursiveDescent.cpp" />
+    <ClCompile Include="RecursiveDescend.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ErrorHandler.h" />
