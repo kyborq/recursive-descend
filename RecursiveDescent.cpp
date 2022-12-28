@@ -55,8 +55,7 @@ int main(int argc, char* argv[])
 {
     setlocale(0, "");
 
-    string code = "PROG id VAR id ,id: int BEGIN id:=(id+num*-(-num+id*id*-num*(id+-num)); END";
-
+    string code = "PROG id VAR id ,id: int;BEGIN id:=id+num*-(-num+id*id*-num*( id+-num)); END";
 
     Lexer lexer = Lexer(code);
     vector<Token> tokens = lexer.Tokenize();
@@ -73,8 +72,12 @@ int main(int argc, char* argv[])
     Parser parser = Parser(tokens);
     bool result = parser.Parse();
 
-    /*for (Token t : tokens)
+    if (result)
     {
-        cout << t.text << endl;
-    }*/
+        cout << "OK!" << endl;
+    }
+    else
+    {
+        cout << "FUCK!!!" << endl;
+    }
 }

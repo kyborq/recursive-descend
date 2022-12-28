@@ -141,7 +141,6 @@ bool Parser::Var()
 	auto colon = this->Match(TokenDefs.at(COLON));
 	if (!colon)
 	{
-		std::cout << this->tokens.at(this->position).text << std::endl;
 		this->error.Call(ErrorDefs.at(COLON));
 		return false;
 	}
@@ -149,6 +148,13 @@ bool Parser::Var()
 	bool type = this->Type();
 	if (!type)
 	{
+		return false;
+	}
+
+	auto semi = this->Match(TokenDefs.at(SEMICOLON));
+	if (!semi)
+	{
+		this->error.Call(ErrorDefs.at(SEMICOLON));
 		return false;
 	}
 
@@ -181,7 +187,6 @@ bool Parser::IdList()
 	{
 		return this->IdList();
 	}
-	//this->position -= 1;
 
 	return true;
 }
@@ -191,7 +196,7 @@ bool Parser::ListSt()
 	bool st = this->St();
 	if (!st)
 	{
-		return false;
+		return true;
 	}
 	else
 	{
@@ -359,6 +364,7 @@ bool Parser::Assign()
 	return true;
 }
 
+// < EXP> ->  < EXP> + <T> | <T>
 bool Parser::Exp()
 {
 	bool t = this->T();
@@ -367,16 +373,16 @@ bool Parser::Exp()
 		return false;
 	}
 
-	bool plus = this->IsMatch(TokenDefs.at(SUM));
-	if (plus)
+	auto sum = this->Match(TokenDefs.at(SUM));
+	if (sum)
 	{
-		this->error.Call(ErrorDefs.at(SUM));
 		return this->Exp();
 	}
 
 	return true;
 }
 
+// <T> -> <T>*<F> | <F>
 bool Parser::T()
 {
 	bool f = this->F();
@@ -385,55 +391,47 @@ bool Parser::T()
 		return false;
 	}
 
-	bool mul = this->IsMatch(TokenDefs.at(MUL));
+	auto mul = this->Match(TokenDefs.at(MUL));
 	if (mul)
 	{
-		this->error.Call(ErrorDefs.at(MUL));
 		return this->T();
 	}
 
 	return true;
 }
 
+// <F>-> -<F>| (<EXP>)| id|num
 bool Parser::F()
 {
-	bool sub = this->IsMatch(TokenDefs.at(SUB));
-	if (sub)
+	auto idOrNum = this->MatchAny({ TokenDefs.at(IDENTIFIER), TokenDefs.at(NUMBER) });
+	if (idOrNum)
 	{
-		this->error.Call(ErrorDefs.at(SUB));
-		return this->F();
+		return true;
 	}
-	//this->position -= 1;
-
-	// ...
 
 	auto lp = this->Match(TokenDefs.at(LP));
-	if (!lp)
+	if (lp)
 	{
-		this->error.Call(ErrorDefs.at(LP));
+		bool exp = this->Exp();
+		if (!exp)
+		{
+			return false;
+		}
+
+		auto rp = this->Match(TokenDefs.at(RP));
+		if (rp)
+		{
+			return true;
+		}
+
 		return false;
 	}
 
-	bool exp = this->Exp();
-	if (!exp)
+	auto minus = this->Match(TokenDefs.at(SUB));
+	if (minus)
 	{
-		return false;
+		return this->F();
 	}
 
-	auto rp = this->Match(TokenDefs.at(RP));
-	if (!rp)
-	{
-		this->error.Call(ErrorDefs.at(RP));
-		return false;
-	}
-
-	// ...
-
-	auto op = this->MatchAny({ TokenDefs.at(IDENTIFIER), TokenDefs.at(NUMBER) });
-	if (!op)
-	{
-		return false;
-	}
-
-	return true;
+	return false;
 }
